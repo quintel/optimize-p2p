@@ -180,7 +180,7 @@ def optimize(
             # Restrict the amount of energy assigned to be one twentieth of the difference between
             # the max and min. This allows energy to be assigned more fairly to surrounding hours in
             # later iterations.
-            available_energy = min(available_energy, (upper - lower) / 20)
+            available_energy = min(available_energy, (upper - lower) / 10)
 
         if available_energy == 0:
             continue
@@ -233,8 +233,17 @@ def run(args):
 
     (charging_target, discharging_target) = build_targets(args, loads, capacity)
 
+    if not prices and not args.constraints_path:
+        # When optimizing towards the mean, the algorithm produces better results when each value is
+        # converted to the difference between itself and the target. This means that instead of
+        # matching the absolute max with the absolute mean, we find hours which are furthest from
+        # the target curves.
+        relative_loads = np.array(loads) - np.array(mean_curve(loads))
+    else:
+        relative_loads = loads
+
     reserve = optimize(
-        loads,
+        relative_loads,
         charging_target,
         discharging_target,
         capacity=capacity,
