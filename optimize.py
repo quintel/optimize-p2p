@@ -25,6 +25,11 @@ class PriceFrame(Frame):
         self.assigned += abs(amount)
 
 
+class ArgumentError(Exception):
+    def __init__(self, message):
+        self.message = message
+
+
 def read_curve(path):
     with open(path) as file:
         data = file.readlines()
@@ -196,6 +201,11 @@ def optimize(
 
 
 def build_targets(args, loads, capacity):
+    if args.constraints_path == False:
+        if not args.price_path:
+            raise ArgumentError("argument --no-constrain: requires that --price also be specified")
+        return (np.repeat(capacity, len(loads)), np.repeat(capacity, len(loads)))
+
     if args.constraints_path:
         charge = np.zeros(len(loads))
         discharge = np.zeros(len(loads))
@@ -207,9 +217,6 @@ def build_targets(args, loads, capacity):
                 charge[index] = abs(value)
 
         return (charge, discharge)
-
-    if args.price_path:
-        return (np.repeat(capacity, len(loads)), np.repeat(capacity, len(loads)))
 
     # If we are still missing a curve, it will be based on the moving average of the load.
 
@@ -276,21 +283,6 @@ parser.add_argument(
     help="The battery capacity in MW; defaults to 10 percent of the volume",
 )
 parser.add_argument(
-    "--gradual",
-    action="store_true",
-    help="Use an iterative process to flatten the curve gradually (this is slow)",
-)
-parser.add_argument(
-    "--price",
-    dest="price_path",
-    help="Path to an optional price curve; uses profit optimization instead of load flattening",
-)
-parser.add_argument(
-    "--constrain",
-    dest="constraints_path",
-    help="Path to an optional constraint CSV",
-)
-parser.add_argument(
     "-v",
     "--volume",
     default=50000.0,
@@ -305,4 +297,35 @@ parser.add_argument(
     help="The number of hours after charging when energy must be discharged; defaults to 72",
 )
 
-run(parser.parse_args())
+# Profit optimization arguments.
+constraint_group = parser.add_mutually_exclusive_group()
+constraint_group.add_argument(
+    "--constrain",
+    dest="constraints_path",
+    help="Path to an optional constraint CSV",
+)
+constraint_group.add_argument(
+    "--no-constrain",
+    dest="constraints_path",
+    action="store_false",
+    help="Disables constraints; useful only when optimizing for profit",
+)
+
+# Gradual flattening.
+gradual_group = parser.add_mutually_exclusive_group()
+gradual_group.add_argument(
+    "--gradual",
+    action="store_true",
+    help="Use an iterative process to flatten the curve gradually (this is slow)",
+)
+gradual_group.add_argument(
+    "--price",
+    dest="price_path",
+    help="Path to an optional price curve; uses profit optimization instead of load flattening",
+)
+
+try:
+    run(parser.parse_args())
+except ArgumentError as e:
+    parser.print_usage()
+    print("optimize.py: error:", e)

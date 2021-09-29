@@ -93,6 +93,16 @@ head constraint.csv
 python optimize.py --constrain constraint.csv load.csv tmp/out.csv
 ```
 
+### Removing constraints
+
+To remove the default moving average constraint, pass a `--no-constrain` argument:
+
+```sh
+python optimize.py --no-constrain none load.csv tmp/out.csv
+```
+
+This sets a charging and discharging constraint equal to the capacity of the battery, allowing the battery unconstrained charging and discharging in all hours. This is only supported when optimizing for profit and can have a significant impact on performance.
+
 ## Gradual load flattening
 
 The `--gradual` option adds a step when load flattening. The assignment of energy is normally limited by the battery capacity and the constraint curve but may be further limited by the difference between the load in the minimum and maximum hour.
