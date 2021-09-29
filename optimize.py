@@ -139,7 +139,7 @@ def optimize(
         min_frame = None
 
         for min_index in range(
-            max_frame.index - 1, min(0, max_frame.index - lookbehind) - 1, -1
+            max_frame.index - 1, max(0, max_frame.index - lookbehind) - 1, -1
         ):
             if reserve[min_index] >= volume:
                 # We've reached a frame already at max-capacity; therefore neither it nor an earlier
