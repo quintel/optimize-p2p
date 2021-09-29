@@ -82,12 +82,13 @@ For example:
 
 ```sh
 head constraint.csv
-# 2100.0    # => discharge up to 2100 GW
-# 1200.0    # => discharge up to 1200 GW
-# 200.0     # => discharge up to 200 MW
-# -800.0    # => charge up to 800 MW
-# -1800.0   # => charge up to 1800 MW
-# -2600.0   # => charge up to 2600 MW
+# 2100.0    # => charge up to 2100 GW
+# 1200.0    # => charge up to 1200 GW
+# 200.0     # => charge up to 200 MW
+# -800.0    # => discharge up to 800 MW
+# -1800.0   # => discharge up to 1800 MW
+# -2600.0   # => discharge up to 2600 MW
+# ...
 
 python optimize.py --constrain constraint.csv load.csv tmp/out.csv
 ```
@@ -114,6 +115,7 @@ head price.csv
 # 24.52
 # 29.96
 # 32.68
+# ...
 
 python optimize.py --price price.csv load.csv tmp/out.csv
 ```
