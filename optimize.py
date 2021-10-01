@@ -66,7 +66,11 @@ def target_curves(load_curve, mean_curve):
     deviation_curve = np.array(load_curve) - np.array(mean_curve)
 
     charging_target = [-value if value < 0.0 else 0.0 for value in deviation_curve]
-    discharging_target = [value if value > 0.0 else 0.0 for value in deviation_curve]
+
+    discharging_target = [
+        min(value, load_curve[index]) if value > 0.0 else 0.0
+        for (index, value) in enumerate(deviation_curve)
+    ]
 
     return (charging_target, discharging_target)
 
@@ -203,7 +207,9 @@ def optimize(
 def build_targets(args, loads, capacity):
     if args.constraints_path == False:
         if not args.price_path:
-            raise ArgumentError("argument --no-constrain: requires that --price also be specified")
+            raise ArgumentError(
+                "argument --no-constrain: requires that --price also be specified"
+            )
         return (np.repeat(capacity, len(loads)), np.repeat(capacity, len(loads)))
 
     if args.constraints_path:
