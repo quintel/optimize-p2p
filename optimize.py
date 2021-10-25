@@ -1,6 +1,7 @@
 from bisect import insort_left
 import argparse
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class Frame:
@@ -285,6 +286,37 @@ def run(args):
 
             prev_load = reserve[index]
 
+    create_plot(loads, reserve)
+
+def create_plot(loads_array, reserve_array):
+
+    # Initialise plot
+    plt.close()
+    fig, ax = plt.subplots(figsize=(25,10))
+    plt.subplot(2,1,1)
+    plt.title("P2P behaviour")
+    plt.xlabel("time (hours)")
+    plt.ylabel("MW")
+
+    # Creating the adjusted residual load curve
+
+    charge = np.diff(reserve_array)
+    charge = np.insert(charge, 1, 0.0)
+
+    #### Plotting curves
+    plot_max = 500
+    plt.plot(np.array(range(0,plot_max)), loads_array[0:plot_max], label="Residual Load")
+    plt.plot(np.array(range(0,plot_max)), loads_array[0:plot_max] + charge[0:plot_max], label="Adjusted Residual Load")
+
+    plt.subplot(2,1,2)
+    plt.title("P2P State of Charge")
+    plt.xlabel("time (hours)")
+    plt.ylabel("%")
+
+    plt.plot(np.array(range(0,plot_max)), 100 * reserve_array[0:plot_max] / max(reserve_array))
+    plt.show()
+
+    return
 
 parser = argparse.ArgumentParser(
     description="Flatten a residual load curve using a battery"
