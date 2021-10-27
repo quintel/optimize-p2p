@@ -286,13 +286,13 @@ def run(args):
 
             prev_load = reserve[index]
 
-    create_plot(loads, reserve)
+    create_plot(loads, reserve, capacity)
 
-def create_plot(loads_array, reserve_array):
+def create_plot(loads_array, reserve_array, capacity):
 
     # Initialise plot
     plt.close()
-    fig, ax = plt.subplots(figsize=(25,10))
+    fig, ax = plt.subplots(figsize=(25,15))
     plt.subplot(2,1,1)
     plt.title("P2P behaviour")
     plt.xlabel("time (hours)")
@@ -300,13 +300,22 @@ def create_plot(loads_array, reserve_array):
 
     # Creating the adjusted residual load curve
 
-    charge = np.diff(reserve_array)
+    charge = np.diff(reserve_array) / 10.0
     charge = np.insert(charge, 1, 0.0)
 
     #### Plotting curves
-    plot_max = 500
-    plt.plot(np.array(range(0,plot_max)), loads_array[0:plot_max], label="Residual Load")
-    plt.plot(np.array(range(0,plot_max)), loads_array[0:plot_max] + charge[0:plot_max], label="Adjusted Residual Load")
+    plot_max = 1000
+    mean_load = np.average(loads_array[0:plot_max])
+
+
+    plt.plot(np.array(range(0,plot_max)), loads_array[0:plot_max], color='g', linestyle='-', linewidth=1.0, label="Residual Load")
+    plt.plot(np.array(range(0,plot_max)), loads_array[0:plot_max] + charge[0:plot_max], color='g', linestyle='-', linewidth=2.0, label="Adjusted Residual Load")
+    plt.plot(np.array(range(0,plot_max)), mean_load + charge[0:plot_max], color='b', linestyle='-', linewidth=1.0, label="Charging behavior of battery")
+
+    plt.axhline(y=mean_load + capacity, color='r', linestyle='--', label="capacity of battery (mean + cap and mean - cap)")
+    plt.axhline(y=mean_load, color='k', linestyle='--', label="mean")
+    plt.axhline(y=mean_load - capacity, color='r', linestyle='--')
+    plt.legend(bbox_to_anchor=[0.7, 0.6])
 
     plt.subplot(2,1,2)
     plt.title("P2P State of Charge")
