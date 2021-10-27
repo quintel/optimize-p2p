@@ -286,13 +286,13 @@ def run(args):
 
             prev_load = reserve[index]
 
-    create_plot(loads, reserve, capacity)
+    create_plot(loads, reserve, charging_target, discharging_target, capacity)
 
-def create_plot(loads_array, reserve_array, capacity):
+def create_plot(loads_array, reserve_array, charging_target, discharging_target, capacity):
 
     # Initialise plot
     plt.close()
-    fig, ax = plt.subplots(figsize=(25,15))
+    fig, ax = plt.subplots(figsize=(25,10))
     plt.subplot(2,1,1)
     plt.title("P2P behaviour")
     plt.xlabel("time (hours)")
@@ -300,17 +300,20 @@ def create_plot(loads_array, reserve_array, capacity):
 
     # Creating the adjusted residual load curve
 
-    charge = np.diff(reserve_array) / 10.0
+    charge = np.diff(reserve_array)
     charge = np.insert(charge, 1, 0.0)
 
     #### Plotting curves
-    plot_max = 1000
-    mean_load = np.average(loads_array[0:plot_max])
+    plot_max = 210
+    plot_min = 190
+    mean_load = np.average(loads_array[plot_min:plot_max])
 
+    smoothed_loads = mean_curve(loads_array)
 
-    plt.plot(np.array(range(0,plot_max)), loads_array[0:plot_max], color='g', linestyle='-', linewidth=1.0, label="Residual Load")
-    plt.plot(np.array(range(0,plot_max)), loads_array[0:plot_max] + charge[0:plot_max], color='g', linestyle='-', linewidth=2.0, label="Adjusted Residual Load")
-    plt.plot(np.array(range(0,plot_max)), mean_load + charge[0:plot_max], color='b', linestyle='-', linewidth=1.0, label="Charging behavior of battery")
+    plt.plot(np.array(range(plot_min,plot_max)), loads_array[plot_min:plot_max], color='g', linestyle='-', linewidth=1.0, label="Residual Load")
+    plt.plot(np.array(range(plot_min,plot_max)), loads_array[plot_min:plot_max] + charge[plot_min:plot_max], color='g', linestyle='-', linewidth=2.0, label="Adjusted Residual Load")
+    plt.plot(np.array(range(plot_min,plot_max)), mean_load + charge[plot_min:plot_max], color='b', linestyle='-', linewidth=1.0, label="Charging behavior of battery")
+    plt.plot(np.array(range(plot_min,plot_max)), smoothed_loads[plot_min:plot_max], color='r', linestyle='-', linewidth=1.0, label="Target curve")
 
     plt.axhline(y=mean_load + capacity, color='r', linestyle='--', label="capacity of battery (mean + cap and mean - cap)")
     plt.axhline(y=mean_load, color='k', linestyle='--', label="mean")
@@ -322,7 +325,7 @@ def create_plot(loads_array, reserve_array, capacity):
     plt.xlabel("time (hours)")
     plt.ylabel("%")
 
-    plt.plot(np.array(range(0,plot_max)), 100 * reserve_array[0:plot_max] / max(reserve_array))
+    plt.plot(np.array(range(plot_min,plot_max)), 100 * reserve_array[plot_min:plot_max] / max(reserve_array))
     plt.show()
 
     return
