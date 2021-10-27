@@ -75,6 +75,50 @@ def target_curves(load_curve, mean_curve):
 
     return (charging_target, discharging_target)
 
+def optimize2(
+    data,
+    capacity=5000.0,
+    window_size=72,
+    volume=50000.0,
+    price_curve=None,
+):
+    """
+    Runs the optimization. Returns the energy stored in the battery in each hour.
+
+    Arguments:
+    data               - The residual load curve
+
+    Keyword arguments:
+    volume      - The volume of the battery in MWh.
+    capacity    - The volume of the battery in MW.
+    window_size  - How many hours the algorithm can look into the past and future to search for the minimum.
+    price_curve - An optional price curve. If given, the algorithm will optimize for profit using
+                  the price curve rather than flattening the load curve.
+    """
+    optimize_profit = price_curve != None
+
+    insort_max = append if optimize_profit else insort_left
+
+    # All values for the year converted to a Frame.
+    if optimize_profit:
+        frames = [PriceFrame(index, value) for (index, value) in enumerate(price_curve)]
+    else:
+        frames = [Frame(index, value) for (index, value) in enumerate(data)]
+
+    # Contains all hours where there is room to discharge, sorted in ascending order (highest value
+    # is last).
+    charge_frames = sorted(
+        [frame for frame in frames if discharging_target[frame.index] > 0]
+    )
+
+    # Keeps track of how much energy is in the reserve in each hour.
+    reserve = np.zeros(len(data))
+
+
+
+    return reserve
+
+
 
 def optimize(
     data,
@@ -299,19 +343,23 @@ def create_plot(loads_array, reserve_array, charging_target, discharging_target,
     plt.ylabel("MW")
 
     # Creating the adjusted residual load curve
-
     charge = np.diff(reserve_array)
     charge = np.insert(charge, 1, 0.0)
+    adjusted_residual_load = loads_array + charge
 
     #### Plotting curves
-    plot_max = 210
-    plot_min = 190
+    plot_min = 0
+    plot_max = 500
+
     mean_load = np.average(loads_array[plot_min:plot_max])
+
+    # Creating cumulative curve (to be compared to SoC)
+    cumulative_loads = np.cumsum(loads_array[plot_min:plot_max] - mean_load)
 
     smoothed_loads = mean_curve(loads_array)
 
     plt.plot(np.array(range(plot_min,plot_max)), loads_array[plot_min:plot_max], color='g', linestyle='-', linewidth=1.0, label="Residual Load")
-    plt.plot(np.array(range(plot_min,plot_max)), loads_array[plot_min:plot_max] + charge[plot_min:plot_max], color='g', linestyle='-', linewidth=2.0, label="Adjusted Residual Load")
+    plt.plot(np.array(range(plot_min,plot_max)), adjusted_residual_load[plot_min:plot_max], color='g', linestyle='-', linewidth=2.0, label="Adjusted Residual Load")
     plt.plot(np.array(range(plot_min,plot_max)), mean_load + charge[plot_min:plot_max], color='b', linestyle='-', linewidth=1.0, label="Charging behavior of battery")
     plt.plot(np.array(range(plot_min,plot_max)), smoothed_loads[plot_min:plot_max], color='r', linestyle='-', linewidth=1.0, label="Target curve")
 
@@ -325,7 +373,11 @@ def create_plot(loads_array, reserve_array, charging_target, discharging_target,
     plt.xlabel("time (hours)")
     plt.ylabel("%")
 
-    plt.plot(np.array(range(plot_min,plot_max)), 100 * reserve_array[plot_min:plot_max] / max(reserve_array))
+    plt.plot(np.array(range(plot_min,plot_max)), 100 * reserve_array[plot_min:plot_max] / max(reserve_array),label="SoC")
+    plt.plot(np.array(range(plot_min,plot_max)), -100 * cumulative_loads / max(cumulative_loads),label="Cumulative load")
+    plt.legend(bbox_to_anchor=[0.7, 0.8])
+    plt.axhline(y=0, color='r', linestyle='--')
+    plt.axhline(y=100, color='r', linestyle='--')
     plt.show()
 
     return
