@@ -75,12 +75,10 @@ def target_curves(load_curve, mean_curve):
 
     return (charging_target, discharging_target)
 
-def optimize2(
+def optimize_cumulative_sum(
     data,
     capacity=5000.0,
-    window_size=72,
     volume=50000.0,
-    price_curve=None,
 ):
     """
     Runs the optimization. Returns the energy stored in the battery in each hour.
@@ -91,32 +89,93 @@ def optimize2(
     Keyword arguments:
     volume      - The volume of the battery in MWh.
     capacity    - The volume of the battery in MW.
-    window_size  - How many hours the algorithm can look into the past and future to search for the minimum.
-    price_curve - An optional price curve. If given, the algorithm will optimize for profit using
-                  the price curve rather than flattening the load curve.
     """
-    optimize_profit = price_curve != None
-
-    insort_max = append if optimize_profit else insort_left
-
-    # All values for the year converted to a Frame.
-    if optimize_profit:
-        frames = [PriceFrame(index, value) for (index, value) in enumerate(price_curve)]
-    else:
-        frames = [Frame(index, value) for (index, value) in enumerate(data)]
-
-    # Contains all hours where there is room to discharge, sorted in ascending order (highest value
-    # is last).
-    charge_frames = sorted(
-        [frame for frame in frames if discharging_target[frame.index] > 0]
-    )
 
     # Keeps track of how much energy is in the reserve in each hour.
-    reserve = np.zeros(len(data))
+    reserve = [0.0]
+
+    cum_sum = 0.0
+
+
+    for load in data:
+
+        # Excess energy: Let's charge!
+        if load <= 0:
+
+            # The capacity is sufficient to accomodate the load
+            if abs(load) <= capacity:
+
+                # The there is enough volume in the battery
+                if abs(load) <= (volume - reserve[-1]):
+
+                    # Store the current load in the battery
+                    reserve.append(reserve[-1] + abs(load))
+
+                # The volume is too small, only charge for as much as the volume allows
+                else:
+
+                    # Store part of the current load in the battery, this means it is full
+                    reserve.append(volume)
+
+
+            # The capacity is too small, only charge for as much as the capacity allows
+            else:
+
+                # Set the load to capacity
+                load = capacity
+
+                # The there is enough volume in the battery
+                if load <= (volume - reserve[-1]):
+
+                    # Store the current load in the battery
+                    reserve.append(reserve[-1] + load)
+
+                # The volume is too small, only charge for as much as the volume allows
+                else:
+
+                    # Store part of the current load in the battery, this means it is full
+                    reserve.append(volume)
+
+        # Net demand: let's try to discharge!
+        else:
+
+            # The capacity is sufficient to accomodate the load
+            if load <= capacity:
+
+                # The there is enough CHARGE in the battery
+                if load <= reserve[-1]:
+
+                    # Extract the current load from the battery
+                    reserve.append(reserve[-1] - load)
+
+                # The CHARGE is too small, only dicharge for as much as there is CHARGE
+                else:
+
+                    # The battery is empty
+                    reserve.append(0.0)
+
+
+            # The capacity is too small, only charge for as much as the capacity allows
+            else:
+
+                # Set the load to capacity
+                load = capacity
+
+                # The there is enough CHARGE in the battery
+                if load <= reserve[-1]:
+
+                    # Extract the current load from the battery
+                    reserve.append(reserve[-1] - load)
+
+                # The volume is too small, only charge for as much as the volume allows
+                else:
+
+                    # The battery is empty
+                    reserve.append(0.0)
 
 
 
-    return reserve
+    return np.array(reserve[1:])
 
 
 
@@ -293,6 +352,8 @@ def run(args):
     else:
         relative_loads = loads
 
+    #reserve = optimize_cumulative_sum(relative_loads)
+
     reserve = optimize(
         relative_loads,
         charging_target,
@@ -359,9 +420,9 @@ def create_plot(loads_array, reserve_array, charging_target, discharging_target,
     smoothed_loads = mean_curve(loads_array)
 
     plt.plot(np.array(range(plot_min,plot_max)), loads_array[plot_min:plot_max], color='g', linestyle='-', linewidth=1.0, label="Residual Load")
-    plt.plot(np.array(range(plot_min,plot_max)), adjusted_residual_load[plot_min:plot_max], color='g', linestyle='-', linewidth=2.0, label="Adjusted Residual Load")
+    plt.plot(np.array(range(plot_min,plot_max)), adjusted_residual_load[plot_min:plot_max], color='g', linestyle='-', linewidth=3.0, label="Adjusted Residual Load")
     plt.plot(np.array(range(plot_min,plot_max)), mean_load + charge[plot_min:plot_max], color='b', linestyle='-', linewidth=1.0, label="Charging behavior of battery")
-    plt.plot(np.array(range(plot_min,plot_max)), smoothed_loads[plot_min:plot_max], color='r', linestyle='-', linewidth=1.0, label="Target curve")
+    plt.plot(np.array(range(plot_min,plot_max)), smoothed_loads[plot_min:plot_max], color='r', linestyle='--', linewidth=1.0, label="Target curve")
 
     plt.axhline(y=mean_load + capacity, color='r', linestyle='--', label="capacity of battery (mean + cap and mean - cap)")
     plt.axhline(y=mean_load, color='k', linestyle='--', label="mean")
