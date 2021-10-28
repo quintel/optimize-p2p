@@ -75,7 +75,7 @@ def target_curves(load_curve, mean_curve):
 
     return (charging_target, discharging_target)
 
-def optimize_cumulative_sum(
+def optimize_simple(
     data,
     capacity=5000.0,
     volume=50000.0,
@@ -352,7 +352,7 @@ def run(args):
     else:
         relative_loads = loads
 
-    #reserve = optimize_cumulative_sum(relative_loads)
+    #reserve = optimize_simple(relative_loads)
 
     reserve = optimize(
         relative_loads,
